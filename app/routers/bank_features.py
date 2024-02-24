@@ -7,6 +7,19 @@ from ..routers import user
 from random import randrange
 from typing import List
 from . import oauth
+from sqlalchemy import func
+from fastapi.middleware.cors import CORSMiddleware
+from collections import ChainMap
+
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
 
 router=APIRouter(
     prefix='/bank',
@@ -27,16 +40,18 @@ router=APIRouter(
 # @router.get("/")
 # def root():
 #     return {"message": "Hello World"}
-
+@router.get("/")
+def demo():
+    return {"message":"fectch data successfully"}
 
 @router.post("/createaccount",status_code=status.HTTP_200_OK)
 def createaccount(accountdetails:schemas.AccountOpen,current_user:int=Depends(oauth.get_current_user),db: Session = Depends(get_db)):
     bankaccount=db.query(models.Account).filter(models.Account.pan_number==accountdetails.pan_number).first()
     if bankaccount:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail=f"Pan number is already exists, Already account has been created")
+        return {"message":"Pan number is already exists"}
     useraccount=db.query(models.Account).filter(models.Account.accountholder_id==current_user).first()
     if useraccount:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f"Account already exists")
+        raise {"message":"Account already exists"}
     print("current_user",current_user)
     account_number_data=randrange(1,1000000)
     amount=0.0
@@ -47,7 +62,7 @@ def createaccount(accountdetails:schemas.AccountOpen,current_user:int=Depends(oa
     db.commit()
     db.refresh(new_account)
     method="Created Account"
-    status="Successfull"
+    status="successful"
     transactrion=models.Transaction(method=method,amount=amount,balance=amount,status=status,accountholder_id=current_user)
     db.add(transactrion)
     db.commit()
@@ -71,15 +86,14 @@ def deposite_money(update_balance:schemas.Deposite,current_user:int=Depends(oaut
     status=" "
     data=db.query(models.Transaction).filter(models.Transaction.accountholder_id==current_user).order_by(models.Transaction.created_at.desc()).first()
  
-    print("data.amount",data.balance)
     cal=update_balance.amount < 499
     if cal:
         status="failed"
-        transactrion=models.Transaction(amount=update_balance.amount,balance=data.balance,method="Deposite",status=status,accountholder_id=current_user)
+        transactrion=models.Transaction(amount=update_balance.amount,balance=data.balance,method="Deposit",status=status,accountholder_id=current_user)
         db.add(transactrion)
         db.commit()
         db.refresh(transactrion)
-        return {"message":"Deposite amount should be min 500"}
+        return {"message":"Deposit amount should be min 500"}
   
         # raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Invalid user ID")
     else:
@@ -87,7 +101,7 @@ def deposite_money(update_balance:schemas.Deposite,current_user:int=Depends(oaut
     totalbalance=data.balance
     totaldata=totalbalance+update_balance.amount
     print(totaldata)
-    transactrion=models.Transaction(amount=update_balance.amount,balance=totaldata,method="Deposite",status=status,accountholder_id=current_user)
+    transactrion=models.Transaction(amount=update_balance.amount,balance=totaldata,method="Deposit",status=status,accountholder_id=current_user)
     db.add(transactrion)
     db.commit()
     db.refresh(transactrion)
@@ -95,7 +109,7 @@ def deposite_money(update_balance:schemas.Deposite,current_user:int=Depends(oaut
     # if not user:
     #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"user_id not found {update_balance.user_id}")
     # # data=(user["balance"])+update_balance.amount
-    return {"data":"Deposite successful"}
+    return {"message":"Deposit successful"}
 
 @router.put("/widthdraw")
 def widthdraw_money(update_balance:schemas.Deposite,current_user:int=Depends(oauth.get_current_user),db: Session = Depends(get_db)):
@@ -108,7 +122,7 @@ def widthdraw_money(update_balance:schemas.Deposite,current_user:int=Depends(oau
         db.add(transactrion)
         db.commit()
         db.refresh(transactrion)
-        return {"message":"insufficient fund"}
+        return {"message":"Insufficient fund"}
 
         # raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Invalid user ID")
     else:
@@ -130,7 +144,7 @@ def statement(current_user:int=Depends(oauth.get_current_user),db: Session = Dep
 
 
 @router.put("/transfer")
-def statement(tansfer_amount:schemas.Transfer,current_user:int=Depends(oauth.get_current_user),db: Session = Depends(get_db)):
+def transfer(tansfer_amount:schemas.Transfer,current_user:int=Depends(oauth.get_current_user),db: Session = Depends(get_db)):
     # amount account number as input 
     # testcases
     # 1) entered account is present in user (sendders account)
@@ -148,18 +162,18 @@ def statement(tansfer_amount:schemas.Transfer,current_user:int=Depends(oauth.get
         # raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,detail=f"insufficient fund") 
     
         status="failed"
-        transactrion=models.Transaction(amount=tansfer_amount.amount,balance=data.balance,method="Tansfer",status=status,accountholder_id=current_user)
+        transactrion=models.Transaction(amount=tansfer_amount.amount,balance=data.balance,method="Transferred",status=status,accountholder_id=current_user)
         db.add(transactrion)
         db.commit()
         db.refresh(transactrion)
-        return {"message":"insufficient fund"}
+        return {"message":"Insufficient fund"}
     
     #transfer money logic 
     #decution of money from user(send account)
     totalbalance=data.balance
     totaldata=totalbalance-tansfer_amount.amount
     print(totaldata)
-    transactrion=models.Transaction(transaction_id=transaction_id,status="successful",amount=tansfer_amount.amount,balance=totaldata,method="Transfred",accountholder_id=current_user)
+    transactrion=models.Transaction(transaction_id=transaction_id,status="successful",amount=tansfer_amount.amount,balance=totaldata,method="Transferred",accountholder_id=current_user)
     db.add(transactrion)
     db.commit()
     db.refresh(transactrion)
@@ -180,3 +194,17 @@ def statement(tansfer_amount:schemas.Transfer,current_user:int=Depends(oauth.get
 
     
     return {"message":"Amount has been transfered successfully"}
+
+@router.get("/checkaccount")
+def checkaccount(current_user:int=Depends(oauth.get_current_user),db: Session = Depends(get_db)):
+    data=db.query(models.Account).filter(models.Account.accountholder_id==current_user).first()
+    if not data:
+        return {"messge":"Please create account"}
+    result=db.query(models.Account,models.Users).join(models.Users,models.Users.id==models.Account.accountholder_id,isouter=True).filter(models.Users.id==current_user).first()
+
+    print(result.Account)
+
+    return {result.Account,result.Users}
+
+
+

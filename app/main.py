@@ -5,23 +5,21 @@ from . import models,schemas
 from sqlalchemy.orm import Session
 from .routers import user,bank_features,auth
 from passlib.context import CryptContext
-
+#from starlette.middleware.cors import CORSMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-origins=["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-app = FastAPI()
 
 app.include_router(user.router)
 app.include_router(bank_features.router)

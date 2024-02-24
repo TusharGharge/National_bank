@@ -45,7 +45,7 @@ class Statement(BaseModel):
     balance: float
     amount:float
     # receiver_account:int
-    # id:int
+    id:int
     method:str
     status:str
     created_at:datetime
@@ -55,4 +55,21 @@ class Statement(BaseModel):
 class Transfer(BaseModel):
     amount:float
     account_number:int
+
+class Login(BaseModel):
+    email: EmailStr
+    password: str
+
+class Checkout(BaseModel):
+    email: EmailStr
+    id:int
+    name:str
+    phone_number:str
+    created_at:datetime
+    account_number:int
+    
+    class Config:
+        orm_mode = True
+
+
 

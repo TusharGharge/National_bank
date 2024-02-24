@@ -6,3 +6,8 @@ def haseddata(password):
 
 def verify(plan_password, hashed_password):
     return pwd_context.verify(plan_password,hashed_password)
+
+def Commit(db,data):
+    db.add(data)
+    db.commit()
+    db.refresh(data)

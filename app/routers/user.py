@@ -12,6 +12,12 @@ router=APIRouter(
 
 @router.post("/",status_code=status.HTTP_201_CREATED,response_model=schemas.UserOut)
 def create_user(user: schemas.UserCreate,db: Session = Depends(get_db)):
+    userdata=db.query(models.Users).filter(models.Users.email==user.email).first()
+    if userdata:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"User already has account")
+    userdata=db.query(models.Users).filter(models.Users.phone_number==user.phone_number).first()
+    if userdata:
+         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"User already has account")
     hased_password=utils.haseddata(user.password)
     user.password=hased_password
     new_user=models.Users(**user.dict())
