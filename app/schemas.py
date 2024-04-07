@@ -70,6 +70,10 @@ class Checkout(BaseModel):
     
     class Config:
         orm_mode = True
+    
+class Verifymail(BaseModel):
+    otp: str
+    email: EmailStr
 
 
 

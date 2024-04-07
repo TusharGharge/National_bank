@@ -10,6 +10,10 @@ from . import oauth
 from sqlalchemy import func
 from fastapi.middleware.cors import CORSMiddleware
 from collections import ChainMap
+from sqlalchemy import create_engine, func, extract,case
+from sqlalchemy.orm import sessionmaker # Import your Transaction model here
+from sqlalchemy.orm import aliased
+from datetime import datetime
 
 
 # app.add_middleware(
@@ -208,3 +212,142 @@ def checkaccount(current_user:int=Depends(oauth.get_current_user),db: Session = 
 
 
 
+
+@router.get("/transactionamountmonthly")
+def get_transactions_monthly(db: Session = Depends(get_db)):
+    current_datetime = datetime.now()
+
+    # Extract the month and year from the current date
+    current_month = current_datetime.month
+    current_year = current_datetime.year
+
+    # print("Current month:", current_month)
+    # print("Current year:", current_year)
+    # data=db.query(models.TrasactionData).filter(models.TrasactionData.transaction_month==current_month,models.TrasactionData.transaction_year==current_year)
+    # if data:
+    #     return {"messge":"Automation is already runnned"}
+    # Write the SQLAlchemy query
+    query = db.query(
+        models.Transaction.accountholder_id,
+        extract('month', models.Transaction.created_at).label('transaction_month'),
+        extract('year', models.Transaction.created_at).label('transaction_year'),
+        func.count().label('total_transactions'),
+        func.sum(case((models.Transaction.method == 'Deposit', models.Transaction.amount), else_=0)).label('total_deposit'),
+        func.sum(case((models.Transaction.method == 'Withdraw', models.Transaction.amount), else_=0)).label('total_withdraw'),
+        func.sum(case((models.Transaction.method == 'Transferred', models.Transaction.amount), else_=0)).label('total_transferred'),
+        func.sum(case((models.Transaction.method == 'Received', models.Transaction.amount), else_=0)).label('total_received'),
+        func.coalesce(func.avg(models.Transaction.balance), 0).label('mab')
+    ).filter(
+        extract('month', models.Transaction.created_at) == 4,
+        extract('year', models.Transaction.created_at) == 2024
+    ).group_by(
+        models.Transaction.accountholder_id,
+        extract('month', models.Transaction.created_at),
+        extract('year', models.Transaction.created_at)
+    )
+
+    # Execute the query and fetch the results
+    results = query.all()
+
+    # Convert results to JSON format
+    transactions_json = []
+    for row in results:
+        transaction = {
+            'accountholder_id': row[0],
+            'transaction_month': row[1],
+            'transaction_year': row[2],
+            'total_transactions': row[3],
+            'total_deposit': row[4],
+            'total_withdraw': row[5],
+            'total_transferred': row[6],
+            'total_received': row[7],
+            'mab': row[8]
+        }
+        transactionsall=models.TrasactionData(accountholder_id=row[0],transaction_month=row[1],transaction_year=row[2],total_transactions=row[3],total_deposit=row[4],total_withdraw=row[5],total_transferred=row[6],total_received=row[7],mab=row[8])
+        print(transactionsall)          
+        db.add(transactionsall)
+        db.commit()
+        # db.refresh(transactionsall)
+        transactions_json.append(transaction)
+        # transactionsall=models.TrasactionData(accountholder_id=row[0],transaction_month=row[1],transaction_year=row[2],total_transactions=row[3],total_deposit=row[4],total_withdraw=row[5],total_transferred=row[6],total_received=row[7],mab=row[8])
+        # db.add(transactionsall)
+        # db.commit()
+        # db.refresh(transactionsall)
+    return transactions_json
+
+
+@router.get("/transactionamountdaily")
+def get_transactions_daily(db: Session = Depends(get_db)):
+    current_datetime = datetime.now()
+
+    # Extract the year, month, and day from the current date
+    current_year = current_datetime.year
+    current_month = current_datetime.month
+    current_day = current_datetime.day
+
+    print("Current year:", current_year)
+    print("Current month:", current_month)
+    print("Current day:", current_day)
+    
+    # data = db.query(models.TrasactionDataDaily).filter(
+    #     models.TrasactionDataDaily.day_transaction_year == current_year,
+    #     models.TrasactionDataDaily.day_transaction_month == current_month,
+    #     models.TrasactionDataDaily.day_transaction_day == current_day
+    # ).first()
+
+    # if data:
+    #     return {"message": "Automation has already run for today"}
+    
+
+    # Write the SQLAlchemy query
+    query = db.query(
+        models.Transaction.accountholder_id,
+        extract('day', models.Transaction.created_at).label('transaction_day'),
+        func.count().label('total_transactions'),
+        func.sum(case((models.Transaction.method == 'Deposit', models.Transaction.amount), else_=0)).label('total_deposit'),
+        func.sum(case((models.Transaction.method == 'Withdraw', models.Transaction.amount), else_=0)).label('total_withdraw'),
+        func.sum(case((models.Transaction.method == 'Transferred', models.Transaction.amount), else_=0)).label('total_transferred'),
+        func.sum(case((models.Transaction.method == 'Received', models.Transaction.amount), else_=0)).label('total_received'),
+        func.coalesce(func.avg(models.Transaction.balance), 0).label('mab')
+    ).filter(
+        extract('year', models.Transaction.created_at) == current_year,
+        extract('month', models.Transaction.created_at) == current_month,
+        extract('day', models.Transaction.created_at) == current_day
+    ).group_by(
+        models.Transaction.accountholder_id,
+        extract('day', models.Transaction.created_at)
+    )
+
+    # Execute the query and fetch the results
+    results = query.all()
+
+    # Convert results to JSON format
+    transactions_json = []
+    for row in results:
+        transaction = {
+            'accountholder_id': row[0],
+            'transaction_day': row[1],
+            'total_transactions': row[2],
+            'total_deposit': row[3],
+            'total_withdraw': row[4],
+            'total_transferred': row[5],
+            'total_received': row[6],
+            'mab': row[7]
+        }
+        transactionsall = models.TrasactionDataDaily(
+            accountholder_id=row[0],
+            day_transaction_year=current_year,
+            day_transaction_month=current_month,
+            day_transaction_day=current_day,
+            day_total_transactions=row[2],
+            day_total_deposit=row[3],
+            day_total_withdraw=row[4],
+            day_total_transferred=row[5],
+            day_total_received=row[6],
+            day_mab=row[7]
+        )
+        db.add(transactionsall)
+        db.commit()
+        transactions_json.append(transaction)
+
+    return transactions_json
