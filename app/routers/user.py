@@ -23,7 +23,7 @@ def create_user(user: schemas.UserCreate,db: Session = Depends(get_db)):
     hased_password=utils.haseddata(user.password)
     user.password=hased_password
     system_otp=Mailgenrator(user.email)
-    print(user)
+    # print(user)
     new_user=models.Users(**user.dict(),otp=system_otp)
     print(new_user)
     db.add(new_user)

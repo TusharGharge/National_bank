@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import BackgroundTasks, FastAPI
 from fastapi import Body, FastAPI, Response,status,HTTPException,Depends,APIRouter
 from ..database import engine,SessionLocal,get_db
 from .. import models,schemas,utils
@@ -14,6 +14,11 @@ from sqlalchemy import create_engine, func, extract,case
 from sqlalchemy.orm import sessionmaker # Import your Transaction model here
 from sqlalchemy.orm import aliased
 from datetime import datetime
+from datetime import datetime
+from celery.schedules import crontab
+import redis
+import json
+from ..celery_worker import redis_client,celery
 
 
 # app.add_middleware(
@@ -276,7 +281,7 @@ def get_transactions_monthly(db: Session = Depends(get_db)):
     return transactions_json
 
 
-@router.get("/transactionamountdaily")
+@celery.task
 def get_transactions_daily(db: Session = Depends(get_db)):
     current_datetime = datetime.now()
 
@@ -351,3 +356,45 @@ def get_transactions_daily(db: Session = Depends(get_db)):
         transactions_json.append(transaction)
 
     return transactions_json
+
+
+@router.get("/schedule_monthly_statements")
+async def schedule_monthly_statements(background_tasks: BackgroundTasks):
+    # Check if monthly statements are already scheduled
+    # if redis_client.exists("monthly_statements_scheduled"):
+    #     raise HTTPException(status_code=400, detail="Monthly statements are already scheduled")
+
+    # Schedule monthly statements to run on the 1st of every month
+    celery.conf.beat_schedule = {
+        "generate-monthly-statements": {
+            "task": "get_transactions_daily",
+            "schedule": crontab(hour=22, minute=16)
+            # "schedule": crontab(day_of_month=1, hour=0, minute=0),  # Run on the 1st of every month
+        }
+    }
+    celery.conf.timezone = 'Asia/Kolkata'
+
+    # Set flag to indicate monthly statements are scheduled
+    redis_client.set("monthly_statements_scheduled", "true")
+    print(redis_client.client_id)
+    return {"message": "Monthly statements scheduled successfully"}
+
+# def call_api():
+#     # Replace 'your_api_endpoint' with the actual API endpoint you want to call
+#     response = requests.get('http://127.0.0.1:8000/bank/transactionamountdaily')
+#     # Process the response if needed
+#     print("API called at", datetime.now())
+
+# # Schedule the API call to occur every day at a specific time (e.g., 9:00 AM)
+# schedule.every().day.at("18:07").do(call_api)
+
+# # You can add more scheduled tasks here if needed
+
+# while True:
+#     schedule.run_pending()
+#     time.sleep(1)
+
+
+@celery.task
+def add(x, y):
+    return x + y

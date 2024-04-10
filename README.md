@@ -162,6 +162,140 @@ Thank you for the reading 🧑🏻, I am open to work with you. DM me over here 
 
 Bye 👋🏻.
 
+SELECT * FROM public."Transaction" WHERE method = 'Deposit';
+
+SELECT * FROM public."Transaction"
+
+SELECT SUM(amount) AS total_deposit, accountholder_id
+FROM public."Transaction"
+WHERE method = 'Deposit'
+GROUP BY accountholder_id;
+
+
+
+SELECT 
+    SUM(amount) AS total_deposit, 
+    accountholder_id,
+    EXTRACT(MONTH FROM created_at) AS transaction_month,
+    EXTRACT(YEAR FROM created_at) AS transaction_year
+FROM 
+    public."Transaction"
+WHERE 
+    method = 'Deposit'
+    AND EXTRACT(MONTH FROM created_at) = 04
+    AND EXTRACT(YEAR FROM created_at) = 2024
+GROUP BY 
+    accountholder_id,
+    EXTRACT(MONTH FROM created_at),
+    EXTRACT(YEAR FROM created_at);
+	
+	
+	
+ SELECT 
+    SUM(CASE WHEN method = 'Deposit' THEN amount ELSE 0 END) AS total_deposit,
+    SUM(CASE WHEN method = 'Withdraw' THEN amount ELSE 0 END) AS total_withdraw,
+    SUM(CASE WHEN method = 'Transferred' THEN amount ELSE 0 END) AS total_transferred,
+    SUM(CASE WHEN method = 'Received' THEN amount ELSE 0 END) AS total_received,
+    accountholder_id,
+    EXTRACT(MONTH FROM created_at) AS transaction_month,
+    EXTRACT(YEAR FROM created_at) AS transaction_year
+FROM 
+    public."Transaction"
+WHERE 
+    EXTRACT(MONTH FROM created_at) = 04
+    AND EXTRACT(YEAR FROM created_at) = 2024
+GROUP BY 
+    accountholder_id,
+    EXTRACT(MONTH FROM created_at),
+    EXTRACT(YEAR FROM created_at);
+	
+	
+	
+SELECT 
+    accountholder_id,
+    EXTRACT(MONTH FROM created_at) AS transaction_month,
+    EXTRACT(YEAR FROM created_at) AS transaction_year,
+    COUNT(*) AS total_transactions,
+    SUM(CASE WHEN method = 'Deposit' THEN amount ELSE 0 END) AS total_deposit,
+    SUM(CASE WHEN method = 'Withdraw' THEN amount ELSE 0 END) AS total_withdraw,
+    SUM(CASE WHEN method = 'Transferred' THEN amount ELSE 0 END) AS total_transferred,
+    SUM(CASE WHEN method = 'Received' THEN amount ELSE 0 END) AS total_received,
+    COALESCE(AVG(balance), 0) AS mab
+FROM 
+    public."Transaction"
+LEFT JOIN (
+    SELECT 
+        accountholder_id,
+        EXTRACT(MONTH FROM created_at) AS month,
+        EXTRACT(YEAR FROM created_at) AS year,
+        AVG(balance) AS balance
+    FROM (
+        SELECT 
+            accountholder_id,
+            created_at,
+            amount,
+            SUM(amount) OVER (PARTITION BY accountholder_id ORDER BY created_at) AS balance
+        FROM 
+            public."Transaction"
+    ) AS balance_history
+    GROUP BY 
+        accountholder_id,
+        EXTRACT(MONTH FROM created_at),
+        EXTRACT(YEAR FROM created_at)
+) AS balances ON public."Transaction".accountholder_id = balances.accountholder_id AND EXTRACT(MONTH FROM public."Transaction".created_at) = balances.month AND EXTRACT(YEAR FROM public."Transaction".created_at) = balances.year
+WHERE 
+    EXTRACT(MONTH FROM created_at) = 4
+    AND EXTRACT(YEAR FROM created_at) = 2024
+GROUP BY 
+    accountholder_id,
+    EXTRACT(MONTH FROM created_at),
+    EXTRACT(YEAR FROM created_at);
+
+
+SELECT 
+    t.accountholder_id,
+    EXTRACT(MONTH FROM t.created_at) AS transaction_month,
+    EXTRACT(YEAR FROM t.created_at) AS transaction_year,
+    COUNT(*) AS total_transactions,
+    SUM(CASE WHEN t.method = 'Deposit' THEN t.amount ELSE 0 END) AS total_deposit,
+    SUM(CASE WHEN t.method = 'Withdraw' THEN t.amount ELSE 0 END) AS total_withdraw,
+    SUM(CASE WHEN t.method = 'Transferred' THEN t.amount ELSE 0 END) AS total_transferred,
+    SUM(CASE WHEN t.method = 'Received' THEN t.amount ELSE 0 END) AS total_received,
+    COALESCE(AVG(balances.balance), 0) AS mab
+FROM 
+    public."Transaction" t
+LEFT JOIN (
+    SELECT 
+        accountholder_id,
+        EXTRACT(MONTH FROM created_at) AS month,
+        EXTRACT(YEAR FROM created_at) AS year,
+        AVG(balance) AS balance
+    FROM (
+        SELECT 
+            accountholder_id,
+            created_at,
+            amount,
+            SUM(amount) OVER (PARTITION BY accountholder_id ORDER BY created_at) AS balance
+        FROM 
+            public."Transaction"
+    ) AS balance_history
+    GROUP BY 
+        accountholder_id,
+        EXTRACT(MONTH FROM created_at),
+        EXTRACT(YEAR FROM created_at)
+) AS balances ON t.accountholder_id = balances.accountholder_id 
+    AND EXTRACT(MONTH FROM t.created_at) = balances.month 
+    AND EXTRACT(YEAR FROM t.created_at) = balances.year
+WHERE 
+    EXTRACT(MONTH FROM t.created_at) = 4
+    AND EXTRACT(YEAR FROM t.created_at) = 2024
+GROUP BY 
+    t.accountholder_id,
+    EXTRACT(MONTH FROM t.created_at),
+    EXTRACT(YEAR FROM t.created_at);
+	
+SELECT * FROM "TransactionData" WHERE transaction_month = 4 AND transaction_year = 2024;
+
 
       
   
