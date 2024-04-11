@@ -56,6 +56,9 @@ def demo():
 @router.post("/createaccount",status_code=status.HTTP_200_OK)
 def createaccount(accountdetails:schemas.AccountOpen,current_user:int=Depends(oauth.get_current_user),db: Session = Depends(get_db)):
     bankaccount=db.query(models.Account).filter(models.Account.pan_number==accountdetails.pan_number).first()
+    data=utils.isValidPanCardNo(accountdetails.pan_number)
+    if data == False:
+        return {"message": "Invalid Pancard Number"}
     if bankaccount:
         return {"message":"Pan number is already exists"}
     useraccount=db.query(models.Account).filter(models.Account.accountholder_id==current_user).first()
