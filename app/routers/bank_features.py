@@ -122,6 +122,9 @@ def deposite_money(update_balance:schemas.Deposite,current_user:int=Depends(oaut
 
 @router.put("/widthdraw")
 def widthdraw_money(update_balance:schemas.Deposite,current_user:int=Depends(oauth.get_current_user),db: Session = Depends(get_db)):
+    if update_balance.amount < 1:
+        return {"message": "Please enter valid amount"}
+
     status=" "
     data=db.query(models.Transaction).filter(models.Transaction.accountholder_id==current_user).order_by(models.Transaction.created_at.desc()).first()
     #Checking account balace before withdraw money, if widthfraw amount is > the error
